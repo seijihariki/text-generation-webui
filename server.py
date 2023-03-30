@@ -11,7 +11,7 @@ import gradio as gr
 
 import modules.extensions as extensions_module
 from modules import chat, shared, training, ui
-from modules.html_generator import generate_chat_html
+from modules.html_generator import generate_chat_html, generate_agent_html
 from modules.LoRA import add_lora_to_model
 from modules.models import load_model, load_soft_prompt
 from modules.text_generation import (clear_torch_cache, generate_reply,
@@ -218,7 +218,7 @@ def create_settings_menus(default_preset):
     shared.gradio['upload_softprompt'].upload(upload_soft_prompt, [shared.gradio['upload_softprompt']], [shared.gradio['softprompts_menu']])
 
 def set_interface_arguments(interface_mode, extensions, cmd_active):
-    modes = ["default", "notebook", "chat", "cai_chat"]
+    modes = ["default", "notebook", "chat", "cai_chat", "agent"]
     cmd_list = vars(shared.args)
     cmd_list = [k for k in cmd_list if type(cmd_list[k]) is bool and k not in modes]
 
@@ -453,6 +453,172 @@ def create_interface():
             shared.gradio['Stop'].click(stop_everything_event, [], [], queue=False, cancels=gen_events if shared.args.no_stream else None)
             shared.gradio['interface'].load(None, None, None, _js=f"() => {{{ui.main_js}}}")
 
+        elif shared.args.agent:
+            user_name, assistant_name = 'User', 'Assistant'
+
+            def generate_agent_html_wrapper(history, character):
+                return generate_agent_html(history, user_name, assistant_name, character)
+
+            with gr.Tab("Conversation", elem_id="main"):
+                shared.gradio['display'] = gr.HTML(value=generate_agent_html_wrapper(shared.history['visible'], shared.character))
+                shared.gradio['textbox'] = gr.Textbox(label='Input')
+                with gr.Row():
+                    shared.gradio['Generate'] = gr.Button('Generate')
+                    shared.gradio['Stop'] = gr.Button('Stop', elem_id="stop")
+                with gr.Row():
+                    shared.gradio['Impersonate'] = gr.Button('Impersonate')
+                    shared.gradio['Regenerate'] = gr.Button('Regenerate')
+                with gr.Row():
+                    shared.gradio['Copy last reply'] = gr.Button('Copy last reply')
+                    shared.gradio['Replace last reply'] = gr.Button('Replace last reply')
+                    shared.gradio['Remove last'] = gr.Button('Remove last')
+
+                    shared.gradio['Clear history'] = gr.Button('Clear history')
+                    shared.gradio['Clear history-confirm'] = gr.Button('Confirm', variant="stop", visible=False)
+                    shared.gradio['Clear history-cancel'] = gr.Button('Cancel', visible=False)
+
+
+                shared.gradio['entity_memories'] = gr.Textbox(label='Entity Memory', default_text="{}")
+
+            with gr.Tab("Agent Setup", elem_id="agent-settings"):
+                shared.gradio['context'] = gr.Textbox(
+                    value=shared.settings['context'], lines=5, label='Context')
+                with gr.Row():
+                    shared.gradio['character_menu'] = gr.Dropdown(
+                        choices=available_characters, value='None', label='Character', elem_id='character-menu')
+                    ui.create_refresh_button(shared.gradio['character_menu'], lambda: None, lambda: {
+                                             'choices': get_available_characters()}, 'refresh-button')
+
+                with gr.Row():
+                    with gr.Tab('Chat history'):
+                        with gr.Row():
+                            with gr.Column():
+                                gr.Markdown('Upload')
+                                shared.gradio['upload_chat_history'] = gr.File(
+                                    type='binary', file_types=['.json', '.txt'])
+                            with gr.Column():
+                                gr.Markdown('Download')
+                                shared.gradio['download'] = gr.File()
+                                shared.gradio['download_button'] = gr.Button(
+                                    value='Click me')
+                    with gr.Tab('Upload character'):
+                        with gr.Row():
+                            with gr.Column():
+                                gr.Markdown('1. Select the JSON file')
+                                shared.gradio['upload_json'] = gr.File(
+                                    type='binary', file_types=['.json'])
+                            with gr.Column():
+                                gr.Markdown(
+                                    '2. Select your character\'s profile picture (optional)')
+                                shared.gradio['upload_img_bot'] = gr.File(
+                                    type='binary', file_types=['image'])
+                        shared.gradio['Upload character'] = gr.Button(
+                            value='Submit')
+                    with gr.Tab('Upload your profile picture'):
+                        shared.gradio['upload_img_me'] = gr.File(
+                            type='binary', file_types=['image'])
+                    with gr.Tab('Upload TavernAI Character Card'):
+                        shared.gradio['upload_img_tavern'] = gr.File(
+                            type='binary', file_types=['image'])
+
+            with gr.Tab("Parameters", elem_id="parameters"):
+                with gr.Box():
+                    gr.Markdown("Chat parameters")
+                    with gr.Row():
+                        with gr.Column():
+                            shared.gradio['max_new_tokens'] = gr.Slider(
+                                minimum=shared.settings['max_new_tokens_min'], maximum=shared.settings['max_new_tokens_max'], step=1, label='max_new_tokens', value=shared.settings['max_new_tokens'])
+                            shared.gradio['chat_prompt_size_slider'] = gr.Slider(minimum=shared.settings['chat_prompt_size_min'], maximum=shared.settings[
+                                                                                 'chat_prompt_size_max'], step=1, label='Maximum prompt size in tokens', value=shared.settings['chat_prompt_size'])
+                        with gr.Column():
+                            shared.gradio['chat_generation_attempts'] = gr.Slider(minimum=shared.settings['chat_generation_attempts_min'], maximum=shared.settings[
+                                                                                  'chat_generation_attempts_max'], value=shared.settings['chat_generation_attempts'], step=1, label='Generation attempts (for longer replies)')
+                            shared.gradio['check'] = gr.Checkbox(
+                                value=shared.settings['stop_at_newline'], label='Stop generating at new line character?')
+
+                create_settings_menus(default_preset)
+
+            history = []
+
+            from modules.langchain import generate
+            from modules.langchain.langchain import agent_chain
+
+            def langchain_wrapper(message:str, entity_memories_json:str, *args, **kwargs):
+                try:
+                    agent_chain.memory.store = json.loads(entity_memories_json)
+                except:
+                    pass
+                response, memory = generate(message)
+                
+
+                history.append([message, response])
+                yield generate_agent_html(history, assistant_name, user_name, shared.character), json.dumps(memory, indent=2)
+
+            shared.input_params = [shared.gradio[k] for k in ['textbox', 'entity_memories', 'max_new_tokens', 'do_sample', 'temperature', 'top_p', 'typical_p', 'repetition_penalty', 'encoder_repetition_penalty',
+                                                              'top_k', 'min_length', 'no_repeat_ngram_size', 'num_beams', 'penalty_alpha', 'length_penalty', 'early_stopping', 'seed', 'context', 'check', 'chat_prompt_size_slider', 'chat_generation_attempts']]
+
+            gen_events.append(shared.gradio['Generate'].click(langchain_wrapper, shared.input_params, [shared.gradio['display'], shared.gradio['entity_memories']], show_progress=shared.args.no_stream))
+            gen_events.append(shared.gradio['textbox'].submit(langchain_wrapper, shared.input_params, [shared.gradio['display'], shared.gradio['entity_memories']], show_progress=shared.args.no_stream))
+            gen_events.append(shared.gradio['Regenerate'].click(chat.regenerate_wrapper, shared.input_params, shared.gradio['display'], show_progress=shared.args.no_stream))
+            gen_events.append(shared.gradio['Impersonate'].click(chat.impersonate_wrapper, shared.input_params, shared.gradio['textbox'], show_progress=shared.args.no_stream))
+            shared.gradio['Stop'].click(stop_everything_event, [], [], queue=False, cancels=gen_events if shared.args.no_stream else None)
+
+            shared.gradio['Copy last reply'].click(chat.send_last_reply_to_input, [], shared.gradio['textbox'], show_progress=shared.args.no_stream)
+            def replace_last_reply_wrapper(message):
+                return chat.replace_last_reply(message,user_name, assistant_name)
+            shared.gradio['Replace last reply'].click(replace_last_reply_wrapper, [shared.gradio['textbox']], shared.gradio['display'], show_progress=shared.args.no_stream)
+
+            # Clear history with confirmation
+            clear_arr = [shared.gradio[k] for k in ['Clear history-confirm', 'Clear history', 'Clear history-cancel']]
+            shared.gradio['Clear history'].click(lambda :[gr.update(visible=True), gr.update(visible=False), gr.update(visible=True)], None, clear_arr)
+            shared.gradio['Clear history-confirm'].click(lambda :[gr.update(visible=False), gr.update(visible=True), gr.update(visible=False)], None, clear_arr)
+            def clear_chat_log_wrapper():
+                return chat.clear_chat_log(user_name, assistant_name)
+            shared.gradio['Clear history-confirm'].click(clear_chat_log_wrapper, None, shared.gradio['display'])
+            shared.gradio['Clear history-cancel'].click(lambda :[gr.update(visible=False), gr.update(visible=True), gr.update(visible=False)], None, clear_arr)
+
+            def remove_last_message_wrapper():
+                return chat.remove_last_message(user_name, assistant_name)
+            shared.gradio['Remove last'].click(remove_last_message_wrapper, None, [shared.gradio['display'], shared.gradio['textbox']], show_progress=False)
+            shared.gradio['download_button'].click(chat.save_history, inputs=[], outputs=[shared.gradio['download']])
+            shared.gradio['Upload character'].click(chat.upload_character, [shared.gradio['upload_json'], shared.gradio['upload_img_bot']], [shared.gradio['character_menu']])
+
+            # Clearing stuff and saving the history
+            for i in ['Generate', 'Regenerate', 'Replace last reply']:
+                shared.gradio[i].click(lambda x: '', shared.gradio['textbox'], shared.gradio['textbox'], show_progress=False)
+                shared.gradio[i].click(lambda : chat.save_history(timestamp=False), [], [], show_progress=False)
+            shared.gradio['Clear history-confirm'].click(lambda : chat.save_history(timestamp=False), [], [], show_progress=False)
+            shared.gradio['textbox'].submit(lambda x: '', shared.gradio['textbox'], shared.gradio['textbox'], show_progress=False)
+            shared.gradio['textbox'].submit(lambda : chat.save_history(timestamp=False), [], [], show_progress=False)
+
+            def load_character_wrapper(character):
+                return chat.load_character(character, user_name, assistant_name)[1:]
+            shared.gradio['character_menu'].change(load_character_wrapper, [shared.gradio['character_menu']], [shared.gradio['context'], shared.gradio['display']])
+
+            def load_history_wrapper(history):
+                return chat.load_history(history, user_name, assistant_name)
+            shared.gradio['upload_chat_history'].upload(load_history_wrapper, [shared.gradio['upload_chat_history']], [])
+
+            def upload_tavern_character_wrapper(img_tavern):
+                return chat.upload_tavern_character(img_tavern, user_name, assistant_name)
+            shared.gradio['upload_img_tavern'].upload(upload_tavern_character_wrapper, [shared.gradio['upload_img_tavern']], [shared.gradio['character_menu']])
+            shared.gradio['upload_img_me'].upload(chat.upload_your_profile_picture, [shared.gradio['upload_img_me']], [])
+
+            def reload_func():
+                chat.redraw_html('User', 'Assistant')
+            shared.gradio['upload_chat_history'].upload(
+                reload_func, None, [shared.gradio['display']])
+            shared.gradio['upload_img_me'].upload(
+                reload_func, None, [shared.gradio['display']])
+            shared.gradio['Stop'].click(
+                reload_func, None, [shared.gradio['display']])
+
+            shared.gradio['interface'].load(
+                None, None, None, _js=f"() => {{{ui.main_js+ui.chat_js}}}")
+            shared.gradio['interface'].load(
+                lambda: chat.load_default_history('User', 'Assistant'), None, None)
+            shared.gradio['interface'].load(
+                reload_func, None, [shared.gradio['display']], show_progress=True)
         else:
             with gr.Tab("Text generation", elem_id="main"):
                 with gr.Row():
@@ -494,7 +660,7 @@ def create_interface():
             training.create_train_interface()
 
         with gr.Tab("Interface mode", elem_id="interface-mode"):
-            modes = ["default", "notebook", "chat", "cai_chat"]
+            modes = ["default", "notebook", "chat", "cai_chat", "agent"]
             current_mode = "default"
             for mode in modes[1:]:
                 if eval(f"shared.args.{mode}"):

@@ -46,13 +46,18 @@ class WebUILLM(BaseLLM, BaseModel):
 
     def _generate(self, prompts: List[str], stop: Optional[List[str]] = None) -> LLMResult:
         generations = []
-        if stop:
-            stop.append('</end>')
+
+        if not stop:
+            stop = []
+        stop.append('</end>')
+
         for prompt in prompts:
             prompt_generations = []
+            prompt_length = len(prompt)
 
             for _ in range(self.generation_attempts):
-                cummulative = ''
+                generated_length = 0
+                generated_string = ""
                 for continuation, *_ in generate_reply(prompt,
                                                        self.max_new_tokens,
                                                        self.do_sample,
@@ -69,21 +74,23 @@ class WebUILLM(BaseLLM, BaseModel):
                                                        self.length_penalty,
                                                        False,
                                                        self.seed,
-                                                       stopping_strings=stop or []):
-                    if cummulative == '':
-                        cummulative += continuation[1:]
-                    else:
-                        cummulative += continuation
+                                                       stopping_strings=stop):
+                    old_generated_length = generated_length
+                    generated_length = len(continuation) - prompt_length
+
+                    continuation = continuation[prompt_length + old_generated_length:]
+                    generated_string += continuation
 
                     if self.streaming:
                         self.callback_manager.on_llm_new_token(token=continuation)
 
-                    if any(map(lambda x: cummulative.strip().endswith(x), stop or ['</end>'])):
+                    if any(map(lambda x: generated_string.strip().endswith(x), stop)):
                         break
-                prompt_generations.append(Generation(text=cummulative))
+                prompt_generations.append(Generation(text=generated_string))
 
             generations.append(prompt_generations)
 
+        print('G:', generations, flush=True)
         return LLMResult(generations=generations)
 
     async def _agenerate(self, prompts: List[str], stop: Optional[List[str]] = None) -> LLMResult:

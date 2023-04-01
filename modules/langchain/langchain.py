@@ -2,13 +2,15 @@ from langchain.memory import CombinedMemory, ConversationSummaryBufferMemory, Co
 from langchain import OpenAI, LLMChain
 from langchain.agents import ConversationalAgent, AgentExecutor, load_tools, initialize_agent
 from modules.langchain.genericllm import WebUILLM
+from dotenv import load_dotenv
+load_dotenv()
 
 llm = WebUILLM()
 #llm = OpenAI()
 tools = load_tools([
     "python_repl",
-    "requests",
-    # "terminal",
+    #"requests",
+    "terminal",
     "llm-math",
     "wikipedia"
 ], llm=llm)
@@ -47,15 +49,13 @@ Observation: 120
 Thought: Do I need to use a tool? No
 AI: It's 120.</end>
 
->>> Scratchpad:
-
-{agent_scratchpad}
-
->>> Begin! 
+>>> Begin! Remember to use a tool to get factual information.
 
 >>> Previous conversation history:
 
 {chat_history}
+
+{agent_scratchpad}
 
 New input: {input}
 """
@@ -66,7 +66,7 @@ prompt = ConversationalAgent.create_prompt(
     suffix=suffix,
     input_variables=["input", "agent_scratchpad", "chat_history"]
 )
-llm_chain = LLMChain(llm=llm, prompt=prompt, verbose=True)
+llm_chain = LLMChain(llm=llm, prompt=prompt)
 tool_names = [tool.name for tool in tools]
 agent = ConversationalAgent(llm_chain=llm_chain, allowed_tools=tool_names)
 agent_chain = AgentExecutor.from_agent_and_tools(

@@ -478,7 +478,7 @@ def create_interface():
                     shared.gradio['Clear history-cancel'] = gr.Button('Cancel', visible=False)
 
 
-                shared.gradio['entity_memories'] = gr.Textbox(label='Entity Memory', default_text="{}")
+                shared.gradio['entity_memories'] = gr.Textbox(label='Entity Memory', value='{}')
 
             with gr.Tab("Agent Setup", elem_id="agent-settings"):
                 shared.gradio['context'] = gr.Textbox(

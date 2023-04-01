@@ -457,7 +457,7 @@ def create_interface():
             user_name, assistant_name = 'User', 'Assistant'
 
             def generate_agent_html_wrapper(history, character):
-                return generate_agent_html(history, user_name, assistant_name, character)
+                return generate_agent_html(history, assistant_name, user_name, character)
 
             with gr.Tab("Conversation", elem_id="main"):
                 shared.gradio['display'] = gr.HTML(value=generate_agent_html_wrapper(shared.history['visible'], shared.character))
@@ -552,7 +552,7 @@ def create_interface():
                 
 
                 history.append([message, response])
-                yield generate_agent_html(history, assistant_name, user_name, shared.character), json.dumps(memory, indent=2)
+                yield generate_agent_html(history, user_name, assistant_name, shared.character), json.dumps(memory, indent=2)
 
             shared.input_params = [shared.gradio[k] for k in ['textbox', 'entity_memories', 'max_new_tokens', 'do_sample', 'temperature', 'top_p', 'typical_p', 'repetition_penalty', 'encoder_repetition_penalty',
                                                               'top_k', 'min_length', 'no_repeat_ngram_size', 'num_beams', 'penalty_alpha', 'length_penalty', 'early_stopping', 'seed', 'context', 'check', 'chat_prompt_size_slider', 'chat_generation_attempts']]
@@ -565,7 +565,7 @@ def create_interface():
 
             shared.gradio['Copy last reply'].click(chat.send_last_reply_to_input, [], shared.gradio['textbox'], show_progress=shared.args.no_stream)
             def replace_last_reply_wrapper(message):
-                return chat.replace_last_reply(message,user_name, assistant_name)
+                return chat.replace_last_reply(message, assistant_name, user_name)
             shared.gradio['Replace last reply'].click(replace_last_reply_wrapper, [shared.gradio['textbox']], shared.gradio['display'], show_progress=shared.args.no_stream)
 
             # Clear history with confirmation
@@ -573,12 +573,12 @@ def create_interface():
             shared.gradio['Clear history'].click(lambda :[gr.update(visible=True), gr.update(visible=False), gr.update(visible=True)], None, clear_arr)
             shared.gradio['Clear history-confirm'].click(lambda :[gr.update(visible=False), gr.update(visible=True), gr.update(visible=False)], None, clear_arr)
             def clear_chat_log_wrapper():
-                return chat.clear_chat_log(user_name, assistant_name)
+                return chat.clear_chat_log(assistant_name, user_name)
             shared.gradio['Clear history-confirm'].click(clear_chat_log_wrapper, None, shared.gradio['display'])
             shared.gradio['Clear history-cancel'].click(lambda :[gr.update(visible=False), gr.update(visible=True), gr.update(visible=False)], None, clear_arr)
 
             def remove_last_message_wrapper():
-                return chat.remove_last_message(user_name, assistant_name)
+                return chat.remove_last_message(assistant_name, user_name)
             shared.gradio['Remove last'].click(remove_last_message_wrapper, None, [shared.gradio['display'], shared.gradio['textbox']], show_progress=False)
             shared.gradio['download_button'].click(chat.save_history, inputs=[], outputs=[shared.gradio['download']])
             shared.gradio['Upload character'].click(chat.upload_character, [shared.gradio['upload_json'], shared.gradio['upload_img_bot']], [shared.gradio['character_menu']])
@@ -592,15 +592,15 @@ def create_interface():
             shared.gradio['textbox'].submit(lambda : chat.save_history(timestamp=False), [], [], show_progress=False)
 
             def load_character_wrapper(character):
-                return chat.load_character(character, user_name, assistant_name)[1:]
+                return chat.load_character(character, assistant_name, user_name)[1:]
             shared.gradio['character_menu'].change(load_character_wrapper, [shared.gradio['character_menu']], [shared.gradio['context'], shared.gradio['display']])
 
             def load_history_wrapper(history):
-                return chat.load_history(history, user_name, assistant_name)
+                return chat.load_history(history, assistant_name, user_name)
             shared.gradio['upload_chat_history'].upload(load_history_wrapper, [shared.gradio['upload_chat_history']], [])
 
             def upload_tavern_character_wrapper(img_tavern):
-                return chat.upload_tavern_character(img_tavern, user_name, assistant_name)
+                return chat.upload_tavern_character(img_tavern, assistant_name, user_name)
             shared.gradio['upload_img_tavern'].upload(upload_tavern_character_wrapper, [shared.gradio['upload_img_tavern']], [shared.gradio['character_menu']])
             shared.gradio['upload_img_me'].upload(chat.upload_your_profile_picture, [shared.gradio['upload_img_me']], [])
 

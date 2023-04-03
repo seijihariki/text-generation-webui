@@ -17,7 +17,7 @@ Its goal is to become the [AUTOMATIC1111/stable-diffusion-webui](https://github.
 * Chat mode for conversation and role playing
 * Nice HTML output for GPT-4chan
 * Markdown output for [GALACTICA](https://github.com/paperswithcode/galai), including LaTeX rendering
-* Custom chat characters in JSON format ([FAQ](https://github.com/oobabooga/text-generation-webui/wiki/Custom-characters-FAQ))
+* [Custom chat characters](https://github.com/oobabooga/text-generation-webui/wiki/Custom-chat-characters)
 * Advanced chat features (send images, get audio responses with TTS)
 * Very efficient text streaming
 * Parameter presets
@@ -60,7 +60,7 @@ Source codes: https://github.com/oobabooga/one-click-installers
 
 Recommended if you have some experience with the command-line.
 
-On Windows, I additionally recommend carrying out the installation on WSL instead of the base system: [WSL installation guide](https://github.com/oobabooga/text-generation-webui/wiki/Windows-Subsystem-for-Linux-(Ubuntu)-Installation-Guide).
+On Windows, I additionally recommend carrying out the installation on WSL instead of the base system: [WSL installation guide](https://github.com/oobabooga/text-generation-webui/wiki/WSL-installation-guide).
 
 0. Install Conda
 
@@ -212,7 +212,7 @@ Optionally, you can use the following command-line flags:
 | `--wbits WBITS`            | GPTQ: Load a pre-quantized model with specified precision in bits. 2, 3, 4 and 8 are supported. |
 | `--model_type MODEL_TYPE`  | GPTQ: Model type of pre-quantized model. Currently LLaMA, OPT, and GPT-J are supported. |
 | `--groupsize GROUPSIZE`    | GPTQ: Group size. |
-| `--pre_layer PRE_LAYER`    | GPTQ: The number of layers to preload. |
+| `--pre_layer PRE_LAYER`    | GPTQ: The number of layers to allocate to the GPU. Setting this parameter enables CPU offloading for 4-bit models. |
 
 #### FlexGen
 

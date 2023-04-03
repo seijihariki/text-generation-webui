@@ -7,6 +7,7 @@ lora_name = "None"
 soft_prompt_tensor = None
 soft_prompt = False
 is_RWKV = False
+is_llamacpp = False
 
 # Chat variables
 history = {'internal': [], 'visible': []}
@@ -31,6 +32,7 @@ settings = {
     'name1': 'You',
     'name2': 'Assistant',
     'context': 'This is a conversation with your Assistant. The Assistant is very helpful and is eager to chat with you and answer your questions.',
+    'greeting': 'Hello there!',
     'stop_at_newline': False,
     'chat_prompt_size': 2048,
     'chat_prompt_size_min': 0,
@@ -101,7 +103,7 @@ parser.add_argument('--threads', type=int, default=0, help='Number of threads to
 parser.add_argument('--wbits', type=int, default=0, help='GPTQ: Load a pre-quantized model with specified precision in bits. 2, 3, 4 and 8 are supported.')
 parser.add_argument('--model_type', type=str, help='GPTQ: Model type of pre-quantized model. Currently LLaMA, OPT, and GPT-J are supported.')
 parser.add_argument('--groupsize', type=int, default=-1, help='GPTQ: Group size.')
-parser.add_argument('--pre_layer', type=int, default=0, help='GPTQ: The number of layers to preload.')
+parser.add_argument('--pre_layer', type=int, default=0, help='GPTQ: The number of layers to allocate to the GPU. Setting this parameter enables CPU offloading for 4-bit models.')
 parser.add_argument('--gptq-bits', type=int, default=0, help='DEPRECATED: use --wbits instead.')
 parser.add_argument('--gptq-model-type', type=str, help='DEPRECATED: use --model_type instead.')
 parser.add_argument('--gptq-pre-layer', type=int, default=0, help='DEPRECATED: use --pre_layer instead.')

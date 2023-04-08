@@ -2,7 +2,7 @@ from langchain.schema import LLMResult, Generation
 from langchain.llms.base import BaseLLM
 
 from pydantic import BaseModel
-from typing import List, Optional
+from typing import Any, List, Optional
 
 from modules.text_generation import generate_reply
 
@@ -26,7 +26,7 @@ class WebUILLM(BaseLLM, BaseModel):
     """Top K."""
     min_length: int = 0
     """Minimum length of the generated result."""
-    repetition_penalty: float = 1.15
+    repetition_penalty: float = 1.5
     """Penalizes repetition."""
     encoder_repetition_penalty: float = 1
     """Penalizes encoder repetition."""
@@ -41,15 +41,21 @@ class WebUILLM(BaseLLM, BaseModel):
     seed: int = -1
     """Generation Seed."""
 
+    generate_state: Any = None
+
     def _llm_type(self):
         return "text-generation-webui"
 
-    def _generate(self, prompts: List[str], stop: Optional[List[str]] = None) -> LLMResult:
+    def _generate(self, prompts: List[str], stop: Optional[List[str]] = []) -> LLMResult:
         generations = []
+        self.generate_state['max_new_tokens'] = self.max_new_tokens
 
         if not stop:
             stop = []
         stop.append('</end>')
+
+        with open('llm-file.log', 'w') as f:
+            f.write(prompts[0])
 
         for prompt in prompts:
             prompt_generations = []
@@ -58,23 +64,12 @@ class WebUILLM(BaseLLM, BaseModel):
             for _ in range(self.generation_attempts):
                 generated_length = 0
                 generated_string = ""
-                for continuation, *_ in generate_reply(prompt,
-                                                       self.max_new_tokens,
-                                                       self.do_sample,
-                                                       self.temperature,
-                                                       self.top_p,
-                                                       self.typical_p,
-                                                       self.repetition_penalty,
-                                                       self.encoder_repetition_penalty,
-                                                       self.top_k,
-                                                       self.min_length,
-                                                       self.no_repeat_ngram_size,
-                                                       self.num_beams,
-                                                       self.penalty_alpha,
-                                                       self.length_penalty,
-                                                       False,
-                                                       self.seed,
+                for continuation in generate_reply(prompt,
+                                                       self.generate_state,
                                                        stopping_strings=stop):
+                    print(">" * 5)
+                    print(continuation)
+                    print(">" * 5)
                     old_generated_length = generated_length
                     generated_length = len(continuation) - prompt_length
 

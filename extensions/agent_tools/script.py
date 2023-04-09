@@ -24,7 +24,4 @@ def custom_generate_chat_prompt(text, max_new_tokens, name1, name2, context, cha
 
     context += f"\n\nEXAMPLE:\n{name1}: hello\n{name2}: Hello, how can I help you today?\n{name1}: How much is 50!?\n{name2}: Let me calculate that for you. <calculator, 50!>"
     
-    print(">" * 10)
-    print(context)
-    print("<" * 10, flush=True)
     return generate_chat_prompt(text, max_new_tokens, name1, name2, context, chat_prompt_size, **kwargs)

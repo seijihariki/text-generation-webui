@@ -67,9 +67,6 @@ class WebUILLM(BaseLLM, BaseModel):
                 for continuation in generate_reply(prompt,
                                                        self.generate_state,
                                                        stopping_strings=stop):
-                    print(">" * 5)
-                    print(continuation)
-                    print(">" * 5)
                     old_generated_length = generated_length
                     generated_length = len(continuation) - prompt_length
 

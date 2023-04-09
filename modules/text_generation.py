@@ -108,9 +108,6 @@ def stop_everything_event():
 
 
 def generate_reply(question, generate_state, eos_token=None, stopping_strings=[]):
-    print("=" * 10)
-    print(question, generate_state, eos_token, stopping_strings)
-    print("=" * 10)
     clear_torch_cache()
     set_manual_seed(generate_state['seed'])
     shared.stop_everything = False
